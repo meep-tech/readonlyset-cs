@@ -8,13 +8,27 @@ namespace Meep.Tech.Collections {
   /// </summary> 
   public class ReadOnlySet(IEnumerable source)
     : IReadOnlySet {
-    private Lazy<ISet<object>> _source
+    #region Private Fields
+    private static readonly Lazy<ReadOnlySet> _empty
+      = new(() => new(new HashSet<object>()));
+    private readonly Lazy<ISet<object>> _source
       = new(() => source is ISet<object> set
         ? set
         : new HashSet<object>(source.Cast<object>()));
+    #endregion
+
+    #region Static Properties
+
+    /// <summary>
+    /// A lazy static instance of an empty <see cref="ReadOnlySet"/>.
+    /// </summary>
+    public static ReadOnlySet Empty
+      => _empty.Value;
+
+    #endregion
 
     /// <inheritdoc />
-    public virtual int Count
+    public int Count
       => _source.Value.Count;
 
     /// <inheritdoc />
@@ -26,7 +40,7 @@ namespace Meep.Tech.Collections {
       => _syncRoot;
 
     /// <inheritdoc />
-    internal virtual object _syncRoot
+    internal object _syncRoot
       => source;
 
     /// <summary>
@@ -42,55 +56,62 @@ namespace Meep.Tech.Collections {
       : this(new HashSet<object>([.. values])) { }
 
     /// <inheritdoc />
-    public virtual bool Contains(object item)
+    public bool Contains(object item)
       => _source.Value.Contains(item);
 
     /// <inheritdoc />
-    public virtual bool IsProperSubsetOf(IEnumerable other)
+    public bool IsProperSubsetOf(IEnumerable other)
       => _source.Value.IsProperSubsetOf(other is IEnumerable<object> objs ? objs : other.Cast<object>());
 
     /// <inheritdoc />
-    public virtual bool IsProperSupersetOf(IEnumerable other)
+    public bool IsProperSupersetOf(IEnumerable other)
       => _source.Value.IsProperSupersetOf(other is IEnumerable<object> objs ? objs : other.Cast<object>());
 
     /// <inheritdoc />
-    public virtual bool IsSubsetOf(IEnumerable other)
+    public bool IsSubsetOf(IEnumerable other)
       => _source.Value.IsSubsetOf(other is IEnumerable<object> objs ? objs : other.Cast<object>());
 
     /// <inheritdoc />
-    public virtual bool IsSupersetOf(IEnumerable other)
+    public bool IsSupersetOf(IEnumerable other)
       => _source.Value.IsSupersetOf(other is IEnumerable<object> objs ? objs : other.Cast<object>());
 
     /// <inheritdoc />
-    public virtual bool Overlaps(IEnumerable other)
+    public bool Overlaps(IEnumerable other)
       => _source.Value.Overlaps(other is IEnumerable<object> objs ? objs : other.Cast<object>());
 
     /// <inheritdoc />
-    public virtual bool SetEquals(IEnumerable other)
+    public bool SetEquals(IEnumerable other)
       => _source.Value.SetEquals(other is IEnumerable<object> objs ? objs : other.Cast<object>());
 
     /// <inheritdoc />
-    public virtual void CopyTo(Array array, int index)
+    public void CopyTo(Array array, int index)
       => _source.Value.CopyTo(array.Cast<object>().ToArray(), index);
 
     /// <inheritdoc />
-    public virtual IEnumerator GetEnumerator()
+    public IEnumerator GetEnumerator()
       => _source.Value.GetEnumerator();
 
     #region Collection Builder
 
-    internal static class _Builder {
+    /// <summary>
+    /// The Collection Builder for <see cref="ReadOnlySet{T}"/>.
+    /// </summary> 
+    public static class CollectionBuilder {
       /// <summary>
       ///  Creates a new <see cref="ReadOnlySet{T}"/> from the provided <paramref name="source"/>.
       /// </summary>
       public static ReadOnlySet Build(ReadOnlySpan<object> source)
-        => new(source.ToArray());
+        => source.IsEmpty ? Empty : new([.. source]);
 
       /// <summary>
       ///  Creates a new <see cref="ReadOnlySet{T}"/> from the provided <paramref name="source"/>.
       /// </summary>
       public static ReadOnlySet<T> Build<T>(ReadOnlySpan<T> source)
-        => new([.. source]);
+        => source.IsEmpty
+          #pragma warning disable IDE0301 // Simplify collection initialization. |Reason: would call itself and cause an infinite loop?
+          ? ReadOnlySet<T>.Empty
+          #pragma warning restore IDE0301 // Simplify collection initialization
+          : new([.. source]);
     }
 
     #endregion
@@ -99,9 +120,24 @@ namespace Meep.Tech.Collections {
   /// <summary>
   /// A read-only wrapper for an existing ISet.
   /// </summary>
-  [CollectionBuilder(typeof(ReadOnlySet._Builder), nameof(ReadOnlySet._Builder.Build))]
+  [CollectionBuilder(typeof(ReadOnlySet.CollectionBuilder), nameof(ReadOnlySet.CollectionBuilder.Build))]
   public class ReadOnlySet<T>(ISet<T> source)
     : IReadOnlySet<T> {
+
+    #region Private Fields
+    private static readonly Lazy<ReadOnlySet<T>> _empty
+      = new(() => new(new HashSet<T>()));
+    #endregion
+
+    #region Static Properties
+
+    /// <summary>
+    /// A lazy static instance of an empty <see cref="ReadOnlySet{T}"/> with the given type.
+    /// </summary>
+    public static ReadOnlySet<T> Empty
+      => _empty.Value;
+
+    #endregion
 
     /// <inheritdoc />
     public int Count
